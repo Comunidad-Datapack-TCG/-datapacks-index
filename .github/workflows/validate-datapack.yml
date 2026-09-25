@@ -6,6 +6,10 @@ on:
     paths:
       - 'proposals/**.json'
 
+concurrency:
+  group: datapack-index-main
+  cancel-in-progress: false
+
 permissions:
   contents: write
   pull-requests: write
@@ -23,7 +27,6 @@ jobs:
       - name: Obtener archivo de propuesta del PR
         id: proposal
         run: |
-          # Descarga segura solo del JSON propuesto en el PR
           git fetch origin pull/${{ github.event.pull_request.number }}/head:pr-branch
           PROPOSAL_FILE=$(git diff --name-only main..pr-branch | grep '^proposals/.*\.json$' | head -n 1)
           if [ -z "$PROPOSAL_FILE" ]; then
@@ -41,12 +44,15 @@ jobs:
       - name: Instalar dependencias
         run: pip install requests
 
-      - name: Validar paquete
+      - name: Validar paquete y generar entrada
         run: |
-          python scripts/validate_pack.py \
+          python scripts/validate_and_index.py \
             --proposal "${{ steps.proposal.outputs.file }}" \
             --catalog "catalog/card_ids.json" \
-            --blocklist "catalog/blocked_terms.json"
+            --blocklist "catalog/blocked_terms.json" \
+            --max-zip-mb 50.0 \
+            --max-unpacked-mb 150.0 \
+            --output "validated_pack.json"
 
       - name: Fusionar datos al índice
         run: |
