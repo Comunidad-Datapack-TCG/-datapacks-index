@@ -1,28 +1,23 @@
-name: Validar y Publicar Data Pack Comunitario
+name: Validar Data Pack
 
 on:
   pull_request_target:
-    types: [opened, synchronize]
+    types: [opened, synchronize, reopened]
     paths:
       - 'proposals/**.json'
 
-concurrency:
-  group: datapack-index-main
-  cancel-in-progress: false
-
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
+  pull-requests: read
 
 jobs:
-  validate-and-merge:
+  validate:
     runs-on: ubuntu-latest
     steps:
       - name: Clonar repositorio base (main)
         uses: actions/checkout@v4
         with:
           ref: main
-          fetch-depth: 0
 
       - name: Obtener archivo de propuesta del PR
         id: proposal
@@ -30,7 +25,7 @@ jobs:
           git fetch origin pull/${{ github.event.pull_request.number }}/head:pr-branch
           PROPOSAL_FILE=$(git diff --name-only main..pr-branch | grep '^proposals/.*\.json$' | head -n 1)
           if [ -z "$PROPOSAL_FILE" ]; then
-            echo "No se encontró ningún archivo de propuesta en proposals/"
+            echo "No se encontró ningún archivo de propuesta en proposals/" >&2
             exit 1
           fi
           git checkout pr-branch -- "$PROPOSAL_FILE"
@@ -44,7 +39,7 @@ jobs:
       - name: Instalar dependencias
         run: pip install requests
 
-      - name: Validar paquete y generar entrada
+      - name: Validar paquete
         run: |
           python scripts/validate_and_index.py \
             --proposal "${{ steps.proposal.outputs.file }}" \
@@ -54,21 +49,12 @@ jobs:
             --max-unpacked-mb 150.0 \
             --output "validated_pack.json"
 
-      - name: Fusionar datos al índice
-        run: |
-          python scripts/merge_into_index.py
-
-      - name: Commit y Push al main
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add datapacks_index.json
-          git commit -m "Auto-indexar data pack validado [skip ci]" || echo "No hay cambios"
-          git push origin main
-
-      - name: Auto-Merge Pull Request
-        uses: pascalgn/automerge-action@v0.16.4
-        env:
-          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
-          MERGE_METHOD: "squash"
-          MERGE_COMMIT_MESSAGE: "pull-request-title"
+      # Los workflows disparados por "workflow_run" no comparten el checkout
+      # del primero, así que guardamos el resultado como artifact para que
+      # el segundo workflow (merge-datapack.yml) lo recoja.
+      - name: Guardar resultado validado
+        uses: actions/upload-artifact@v4
+        with:
+          name: validated-pack-${{ github.event.pull_request.number }}
+          path: validated_pack.json
+          retention-days: 1
