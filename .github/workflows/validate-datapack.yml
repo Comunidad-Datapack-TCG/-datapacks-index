@@ -1,0 +1,56 @@
+name: Validar y Publicar Data Pack de la Comunidad
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+    paths:
+      - 'proposals/**.json'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  validate-and-merge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clonar repositorio
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Detectar archivo de propuesta
+        id: find-proposal
+        run: |
+          PROPOSAL_FILE=$(git diff --name-only origin/main | grep '^proposals/.*\.json$' | head -n 1)
+          if [ -z "$PROPOSAL_FILE" ]; then
+            echo "No se encontró ningún archivo de propuesta en proposals/"
+            exit 1
+          fi
+          echo "file=$PROPOSAL_FILE" >> $GITHUB_OUTPUT
+
+      - name: Ejecutar validación técnica e indexación
+        run: |
+          python scripts/validate_and_index.py "${{ steps.find-proposal.outputs.file }}" "datapacks_index.json"
+
+      - name: Auto-Commit al branch del PR
+        run: |
+          git config --global user.name "Community-Bot"
+          git config --global user.email "bot@community.local"
+          git add datapacks_index.json
+          git commit -m "Auto-indexar data pack validado [skip ci]" || echo "No hay cambios"
+          git push
+
+      - name: Auto-Merge Pull Request
+        uses: pascalgn/automerge-action@v0.16.4
+        env:
+          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+          MERGE_LABELS: ""
+          MERGE_METHOD: "squash"
+          MERGE_COMMIT_MESSAGE: "pull-request-title"
