@@ -104,7 +104,7 @@ Todo el proceso de revisión e indexación es **100% automático** mediante GitH
    - Que `manifest.json` y `database.json` cumplan el schema exacto.
    - Que todos los `cardId` existan en el catálogo oficial del juego.
    - Que `title`, `description` y `author` no contengan términos de la lista de marcas/nombres bloqueados (Principio 4).
-5. Si todas las pruebas pasan en verde, el bot calcula el `sha256` del archivo, añade **solo los campos neutros** (`id`, `title`, `author`, `version`, `sizeMb`, `downloadUrl`, `checksum`, `submittedAt`) al `datapacks_index.json`, y fusiona (merge) tu Pull Request automáticamente.
+5. Si todas las pruebas pasan en verde, el bot calcula el sha256 del archivo, añade solo los campos neutros (id, title, author, version, sizeMb, cardsCount, downloadUrl, checksumSha256, submittedAt, isRecommended, bannerColor) al datapacks_index.json, y fusiona (merge) tu Pull Request automáticamente.
 6. Si alguna prueba falla, el bot comenta el motivo técnico específico en tu PR y lo cierra — puedes corregir y volver a intentarlo.
 
 ---
