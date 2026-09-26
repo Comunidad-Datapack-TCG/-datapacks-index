@@ -45,16 +45,19 @@ jobs:
             --proposal "${{ steps.proposal.outputs.file }}" \
             --catalog "catalog/card_ids.json" \
             --blocklist "catalog/blocked_terms.json" \
-            --max-zip-mb 300.0 \
-            --max-unpacked-mb 500.0 \
+            --max-zip-mb 100.0 \
+            --max-unpacked-mb 300.0 \
             --output "validated_pack.json"
 
-      # Los workflows disparados por "workflow_run" no comparten el checkout
-      # del primero, así que guardamos el resultado como artifact para que
-      # el segundo workflow (merge-datapack.yml) lo recoja.
+      - name: Guardar número de PR
+        run: |
+          echo "${{ github.event.pull_request.number }}" > pr_number.txt
+
       - name: Guardar resultado validado
         uses: actions/upload-artifact@v4
         with:
           name: validated-pack-${{ github.event.pull_request.number }}
-          path: validated_pack.json
+          path: |
+            validated_pack.json
+            pr_number.txt
           retention-days: 1
