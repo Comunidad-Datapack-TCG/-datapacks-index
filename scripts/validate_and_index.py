@@ -29,7 +29,7 @@ def fail(msg: str):
 
 def load_json(path: Path):
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
+        return json.loads(path.read_text(encoding="utf-8-sig"))
     except Exception as e:
         fail(f"JSON inválido en {path}: {e}")
 
