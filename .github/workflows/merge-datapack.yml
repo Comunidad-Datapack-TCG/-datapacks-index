@@ -39,15 +39,14 @@ jobs:
         run: |
           FILE=$(find ./validated -name "validated_pack.json" | head -n 1)
           cp "$FILE" ./validated_pack.json
-          PR_NUMBER=$(echo '${{ toJson(github.event.workflow_run.pull_requests) }}' | python3 -c "import json,sys; print(json.load(sys.stdin)[0]['number'])")
+          PR_FILE=$(find ./validated -name "pr_number.txt" | head -n 1)
+          PR_NUMBER=$(cat "$PR_FILE" | tr -d '[:space:]')
+          echo "PR detectado: $PR_NUMBER"
           echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
 
       - name: Fusionar al índice neutro
         run: python scripts/merge_into_index.py
 
-      # En este punto GitHub YA registró el check "Validar Data Pack" como
-      # exitoso para el PR original (es un workflow distinto, ya terminado),
-      # así que la fusión vía API respeta la regla de rama sin conflicto.
       - name: Fusionar el PR original del colaborador
         uses: actions/github-script@v7
         with:
@@ -56,17 +55,10 @@ jobs:
             await github.rest.pulls.merge({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              pull_number: ${{ steps.info.outputs.pr_number }},
+              pull_number: Number('${{ steps.info.outputs.pr_number }}'),
               merge_method: 'squash'
             });
 
-      # El índice actualizado se empuja directo a main. Esto requiere que
-      # la cuenta dedicada del bot (ej. tcg-datapacks-bot) esté agregada en
-      # "Allow specified actors to bypass required pull requests" en la
-      # regla de protección de la rama — una excepción reservada solo para
-      # esta escritura mecánica ya validada, nunca para contenido nuevo ni
-      # para ninguna persona. El checkout con BOT_PAT (arriba) es lo que
-      # autentica el push con esa identidad, no estas dos líneas.
       - name: Confirmar y empujar el índice actualizado a main
         run: |
           git config --global user.name "tcg-datapacks-bot"
