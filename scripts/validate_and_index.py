@@ -11,7 +11,8 @@ from pathlib import Path
 from urllib.parse import urlparse
 import requests
 
-ALLOWED_ROOT_FILES = {"manifest.json", "database.json"}
+ALLOWED_ROOT_FILES = {"manifest.json", "database.json", "background.png"}
+ALLOWED_FOLDERS = {"photos", "backgrounds"}
 ALLOWED_PHOTO_EXT = {".png"}
 REQUIRED_MANIFEST_FIELDS = {
     "schemaVersion", "packId", "title", "author", "version",
@@ -88,6 +89,15 @@ def safe_extract(zip_path: Path, extract_to: Path, max_unpacked_mb: float):
             if total_uncompressed > max_unpacked_bytes:
                 fail(f"El contenido descomprimido supera {max_unpacked_mb} MB (posible bomba de descompresión).")
 
+            # Permitir directorios legítimos del zip
+            if info.is_dir() or name.endswith('/'):
+                parts = normalized.parts
+                if len(parts) == 1 and parts[0] in ALLOWED_FOLDERS:
+                    continue
+                elif len(parts) == 1:
+                    fail(f"Carpeta no permitida en la raíz del ZIP: {name!r}")
+                continue
+
             parts = normalized.parts
             if len(parts) == 1:
                 if name not in ALLOWED_ROOT_FILES:
@@ -95,6 +105,9 @@ def safe_extract(zip_path: Path, extract_to: Path, max_unpacked_mb: float):
             elif parts[0] == "photos":
                 if Path(name).suffix.lower() not in ALLOWED_PHOTO_EXT:
                     fail(f"Archivo no permitido dentro de photos/: {name!r}")
+            elif parts[0] == "backgrounds":
+                if Path(name).suffix.lower() not in ALLOWED_PHOTO_EXT:
+                    fail(f"Archivo no permitido dentro de backgrounds/: {name!r}")
             else:
                 fail(f"Ruta o carpeta no reconocida dentro del ZIP: {name!r}")
 
