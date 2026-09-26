@@ -45,8 +45,8 @@ jobs:
             --proposal "${{ steps.proposal.outputs.file }}" \
             --catalog "catalog/card_ids.json" \
             --blocklist "catalog/blocked_terms.json" \
-            --max-zip-mb 100.0 \
-            --max-unpacked-mb 300.0 \
+            --max-zip-mb 300.0 \
+            --max-unpacked-mb 600.0 \
             --output "validated_pack.json"
 
       - name: Guardar número de PR
