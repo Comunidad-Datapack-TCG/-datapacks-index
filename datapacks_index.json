@@ -1,3 +1,18 @@
 {
-  "packs": []
+  "packs": [
+    {
+      "id": "copa_campeones_2026",
+      "title": "Edición Internacional 2026",
+      "author": "Comunidad TCG",
+      "version": "1.0.0",
+      "downloadUrl": "https://github.com/Masterlevel67/mis-datapacks/releases/download/1.0.0/Campeones.zip",
+      "checksumSha256": "cabc946a40aae44ea9eaef5fbc1cd518fb69314bfee35ad85679b932bf7d1f49",
+      "checksum": "sha256:cabc946a40aae44ea9eaef5fbc1cd518fb69314bfee35ad85679b932bf7d1f49",
+      "sizeMb": "218.4 MB",
+      "cardsCount": 77,
+      "isRecommended": false,
+      "bannerColor": "#E8A820",
+      "submittedAt": "2026-09-26"
+    }
+  ]
 }
