@@ -101,4 +101,4 @@ Podemos actualizar esta política ocasionalmente. Si hacemos cambios importantes
 
 Si tienes preguntas sobre esta política o quieres ejercer alguno de tus derechos, puedes escribirnos a:
 
-**[tu-correo@dominio.com]**
+**[futbolen570@gmail.com]**
