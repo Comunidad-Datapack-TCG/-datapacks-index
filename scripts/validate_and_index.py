@@ -12,11 +12,12 @@ from urllib.parse import urlparse
 import requests
 
 ALLOWED_ROOT_FILES = {"manifest.json", "database.json", "background.png"}
-ALLOWED_FOLDERS = {"photos", "backgrounds"}
+ALLOWED_FOLDERS = {"photos", "backgrounds", "clubs", "crests"}
 ALLOWED_PHOTO_EXT = {".png"}
+
+# Campos obligatorios base que todo manifest debe incluir
 REQUIRED_MANIFEST_FIELDS = {
-    "schemaVersion", "packId", "title", "author", "version",
-    "totalCards", "hasPhotos"
+    "schemaVersion", "packId", "title", "author", "version"
 }
 REQUIRED_CARD_FIELDS = {"cardId", "playerName", "initials", "position"}
 
@@ -108,6 +109,9 @@ def safe_extract(zip_path: Path, extract_to: Path, max_unpacked_mb: float):
             elif parts[0] == "backgrounds":
                 if Path(name).suffix.lower() not in ALLOWED_PHOTO_EXT:
                     fail(f"Archivo no permitido dentro de backgrounds/: {name!r}")
+            elif parts[0] in ("clubs", "crests"):
+                if Path(name).suffix.lower() not in ALLOWED_PHOTO_EXT:
+                    fail(f"Archivo no permitido dentro de {parts[0]}/: {name!r}")
             else:
                 fail(f"Ruta o carpeta no reconocida dentro del ZIP: {name!r}")
 
@@ -129,25 +133,44 @@ def validate_database(extract_to: Path, catalog_ids: set):
         fail("Falta database.json en el paquete.")
     db = load_json(db_path)
 
-    cards = db.get("cards")
-    if not isinstance(cards, list) or not cards:
-        fail("database.json debe tener un array 'cards' no vacío.")
+    cards = db.get("cards", [])
+    clubs = db.get("clubs", [])
 
-    photos_dir = extract_to / "photos"
-    for card in cards:
-        missing = REQUIRED_CARD_FIELDS - card.keys()
-        if missing:
-            fail(f"Carta con campos faltantes {missing}: {card}")
+    if not cards and not clubs:
+        fail("database.json debe tener al menos un array 'cards' o 'clubs' no vacío.")
 
-        card_id = card["cardId"]
-        if card_id not in catalog_ids:
-            fail(f"cardId desconocido: {card_id!r} - no existe en catalog/card_ids.json.")
+    total_cards = 0
+    total_clubs = 0
 
-        expected_photo = photos_dir / f"{card_id}.png"
-        if not expected_photo.exists():
-            fail(f"Falta la foto correspondiente para {card_id}: {expected_photo.name}")
+    # 1. Validación de Cartas de Álbum (si existen en el pack)
+    if cards:
+        if not isinstance(cards, list):
+            fail("'cards' en database.json debe ser una lista.")
+        photos_dir = extract_to / "photos"
+        for card in cards:
+            missing = REQUIRED_CARD_FIELDS - card.keys()
+            if missing:
+                fail(f"Carta con campos faltantes {missing}: {card}")
 
-    return len(cards)
+            card_id = card["cardId"]
+            if card_id not in catalog_ids:
+                fail(f"cardId desconocido: {card_id!r} - no existe en catalog/card_ids.json.")
+
+            expected_photo = photos_dir / f"{card_id}.png"
+            if not expected_photo.exists():
+                fail(f"Falta la foto correspondiente para {card_id}: {expected_photo.name}")
+        total_cards = len(cards)
+
+    # 2. Validación de Clubes de Modo Carrera (si existen en el pack)
+    if clubs:
+        if not isinstance(clubs, list):
+            fail("'clubs' en database.json debe ser una lista.")
+        for club in clubs:
+            if not club.get("clubId") or not club.get("realName"):
+                fail(f"Club inválido en database.json: falta clubId o realName en {club}")
+        total_clubs = len(clubs)
+
+    return total_cards, total_clubs
 
 def main():
     parser = argparse.ArgumentParser()
@@ -181,7 +204,7 @@ def main():
 
         safe_extract(zip_path, extract_to, args.max_unpacked_mb)
         validate_manifest(extract_to)
-        total_cards = validate_database(extract_to, catalog_ids)
+        total_cards, total_clubs = validate_database(extract_to, catalog_ids)
 
         size_mb_float = round(zip_path.stat().st_size / (1024 * 1024), 1)
 
@@ -195,15 +218,16 @@ def main():
             "checksum": f"sha256:{checksum}",
             "sizeMb": f"{size_mb_float} MB",
             "cardsCount": total_cards,
-            "isRecommended": False,
-            "bannerColor": "#E8A820",
+            "clubsCount": total_clubs,
+            "isRecommended": proposal.get("isRecommended", False),
+            "bannerColor": proposal.get("bannerColor", "#00E676" if total_clubs > 0 else "#E8A820"),
             "submittedAt": datetime.now(timezone.utc).strftime("%Y-%m-%d")
         }
 
         with open(args.output, "w", encoding="utf-8") as out:
             json.dump(result, out, indent=2, ensure_ascii=False)
 
-    print(f"[SUCCESS] Pack validado: {proposal['id']} ({total_cards} cartas)", file=sys.stderr)
+    print(f"[SUCCESS] Pack validado: {proposal['id']} ({total_cards} cartas, {total_clubs} clubes)", file=sys.stderr)
 
 if __name__ == "__main__":
     try:
